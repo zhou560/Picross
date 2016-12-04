@@ -1,30 +1,8 @@
 <!DOCTYPE html>
 <html>
-
-  <!--head>
-  **old code**
-    <title>NodeJS Starter Application</title>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="stylesheets/style.css">
-  </head>
-
-  <body>
-    <table>
-      <tr>
-        <td style= "width:30%;">
-          <img class = "newappIcon" src="images/newapp-icon.png">
-        </td>
-        <td>
-          <h1 id="message">Hello World!</h1>
-          <p class='description'></p> Thanks for creating a <span class = "blue">NodeJS Starter Application</span>.
-        </td>
-      </tr>
-    </table>
-  </body-->
 <head>
 	<title>Web Picross</title>
+	<meta charset="utf-8">
 	<style>
 		canvas{
 			border: 2px solid gray;
@@ -34,17 +12,32 @@
 <body>
 	<script>
 	
-	var rows = 8;
-	var columns = 8;
+	var puzzle = [
+	[0,0,0,0,0,0,0,0],
+	[0,0,0,0,0,0,0,0],
+	[0,0,1,0,0,1,0,0],
+	[0,0,1,0,0,1,0,0],
+	[0,0,0,0,0,0,0,0],
+	[0,1,0,0,0,0,1,0],
+	[0,0,1,1,1,1,0,0],
+	[0,0,0,0,0,0,0,0],
+	];
+	
+	var rows = puzzle.length;
+	var columns = puzzle[0].length;
+	
 	//This canvas contains the game grid.
 	var canvas;
 	var ctx;
 		
 	var data;
 	
+	//The number of tiles left to be broken
+	var goal;
+
 	window.onload = function main(){
 		canvas = document.createElement("canvas");
-		canvas.width = rows * 45 - 5;
+		canvas.width = columns * 45 - 5;
 		canvas.height = rows * 45 - 5;
 		ctx = canvas.getContext("2d");
 		
@@ -57,11 +50,21 @@
 	};
 	
 	function init(){
+		//Primitive scoring system
+		goal = 0;
+		for (var i = 0; i < rows; i++){
+			for (var j = 0; j < columns; j++){
+				if (puzzle[i][j]){
+					goal++;
+				}
+			}
+		}
+		
 		//An array that holds all the game tiles
 		data = [];
 		var x;
 		var y;
-		for (var i = 0; i < rows*columns; i++){
+		for (i = 0; i < rows*columns; i++){
 			x = i % columns * 45;
 			y = Math.floor(i / rows) * 45;
 			data[i] = new Tile(x, y);
@@ -70,9 +73,23 @@
 	
 	//Continuously updates tileset
 	function tick(){
-		window.requestAnimationFrame(tick);
-		update();
-		render();
+		//If game has not ended yet, continue updating
+		if (goal){
+			window.requestAnimationFrame(tick);
+			update();
+			render();
+		}
+		//When all tiles have been correctly broken, end the game
+		else{
+			//The last tile has to render before the game ends.
+			for (var i = 0; i < data.length; i++){
+				if (data[i].state !== 1){
+					data[i].finish();
+				}
+			}
+			render();
+			window.alert("You win!");
+		}
 		
 	}
 	
@@ -117,8 +134,9 @@
 	function Tile(initx, inity){
 		
 		var x = initx, y = inity;
+		//Stores the current tile state.
 		var tile;
-		//Either blank(0), broken(1), or painted(2).
+		//Either blank(0), broken(1), painted(2), or permanent(3).
 		var state = 0;
 				
 		//Tiles are images. To create them cheaply, make a small canvas and draw on it.
@@ -127,36 +145,58 @@
 		_c.height = 40;
 		var _ctx = _c.getContext("2d");
 		
-		//Create BLANK tile. 
+		//Create EMPTY tile image
+		_ctx.fillStyle = "white";
+		_ctx.fillRect(0, 0, 40, 40);
+		//Empty tiles are white.
+		Tile.EMPTY = new Image();
+		Tile.EMPTY.src = _c.toDataURL();
+		
+		//Create BLANK tile image
 		_ctx.fillStyle = "lightgray";
 		_ctx.fillRect(0, 0, 40, 40);
-		
+		//Blank tiles can either be broken or painted.
 		Tile.BLANK = new Image();
 		Tile.BLANK.src = _c.toDataURL();
 		
-		//Create BROKEN tile
+		//Create BROKEN tile image
 		_ctx.fillStyle = "black";
 		_ctx.fillRect(0, 0, 40, 40);
-		
+		//Tiles are broken in order to complete the puzzle.
 		Tile.BROKEN = new Image();
 		Tile.BROKEN.src = _c.toDataURL();
 		
-		//Create PAINTED tile
+		//Create PAINTED tile image
 		_ctx.fillStyle = "aqua";
 		_ctx.fillRect(0, 0, 40, 40);
-		
+		//Painted tiles mark tiles so that they cannot be broken. They can be unpainted.
 		Tile.PAINTED = new Image();
 		Tile.PAINTED.src = _c.toDataURL();
+		
+		//Create PERMANENT tile image
+		_ctx.fillStyle = "red";
+		_ctx.fillRect(0, 0, 40, 40);
+		//Permanent tiles mark tiles that were mistakenly broken. They cannot be unpainted.
+		Tile.PERMANENT = new Image();
+		Tile.PERMANENT.src = _c.toDataURL();
 
 		tile = Tile.BLANK;
 		
-		//Break a tile, unless it is painted or already broken.
+		//Break a tile, unless it is painted, permanent, or already broken.
 		this.smash = function(){
 			if (state === 0){
-				tile = Tile.BROKEN;
-				state = 1;
+				if (puzzle[y / 45][x / 45]){
+					//NOTE: y comes first, to select the row, then x to select the column.
+					tile = Tile.BROKEN;
+					state = 1;
+					goal--;
+				}
+				//If a tile is broken incorrectly, replace it with a permanent tile.
+				else{
+					tile = Tile.PERMANENT;
+					state = 3;
+				}
 			}
-
 		};
 		
 		//Paint a tile. This stops it from being broken. Painted tiles can be unpainted.
@@ -171,9 +211,14 @@
 			}
 		};
 		
+		//Nothing here at the moment. If there is any animation, it would go here.
 		this.update = function(){
-			
+
 		};
+		
+		this.finish = function(){
+			tile = Tile.EMPTY;
+		}
 		
 		this.draw = function(ctx){
 			ctx.drawImage(tile, x, y);
