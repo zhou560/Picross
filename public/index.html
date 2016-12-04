@@ -2,6 +2,7 @@
 <html>
 
   <!--head>
+  **old code**
     <title>NodeJS Starter Application</title>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -22,12 +23,163 @@
       </tr>
     </table>
   </body-->
-	<canvas id="ctx" width="500" height="500" style="border:1px solid #000000;"></canvas>
+<head>
+	<title>Web Picross</title>
+	<style>
+		canvas{
+			border: 2px solid gray;
+		}
+	</style>
+</head>
+<body>
 	<script>
-	var ctx = document.getElementById("ctx").getContext("2d");
 	
-	ctx.font="39px Arial";
-	ctx.fillText("Hello World", 10, 50);
+	var rows = 8;
+	var columns = 8;
+	//This canvas contains the game grid.
+	var canvas;
+	var ctx;
+		
+	var data;
+	
+	window.onload = function main(){
+		canvas = document.createElement("canvas");
+		canvas.width = rows * 45 - 5;
+		canvas.height = rows * 45 - 5;
+		ctx = canvas.getContext("2d");
+		
+		document.body.appendChild(canvas);
+		
+		canvas.addEventListener("mousedown", mouseDown);
+		init();
+		tick();
+		
+	};
+	
+	function init(){
+		//An array that holds all the game tiles
+		data = [];
+		var x;
+		var y;
+		for (var i = 0; i < rows*columns; i++){
+			x = i % columns * 45;
+			y = Math.floor(i / rows) * 45;
+			data[i] = new Tile(x, y);
+		}
+	}
+	
+	//Continuously updates tileset
+	function tick(){
+		window.requestAnimationFrame(tick);
+		update();
+		render();
+		
+	}
+	
+	//Calls update method of each tile
+	function update(){
+		for (var i = 0; i < data.length; i++){
+			data[i].update();
+		}
+	}
+	
+	//Render each tile by calling its draw method
+	function render(){
+		for (var i = 0; i < data.length; i++){
+			data[i].draw(ctx);
+		}
+	}
+	
+	//Respond to mouse click
+	function mouseDown(evn){
+		var e = evn.target;
+		//Get the coordinates of the cursor inside the canvas
+		var px = evn.clientX - e.offsetLeft;
+		var py = evn.clientY - e.offsetTop;
+		
+		//The index of the tile that was clicked on.
+		var index = Math.floor(px/45);
+		index += Math.floor(py/45) * columns;
+		if (evn.which === 1){
+			data[index].smash();
+		}
+		else if (evn.which === 3){
+			data[index].mark();
+		}
+	}
+	
+	//Suppress right click menu, because right click does something in the game.
+	window.oncontextmenu = function(){
+		return false;
+	};
+	
+	//Tile class. Each tile is 20x20 pixels, padded with 5 pixels.
+	function Tile(initx, inity){
+		
+		var x = initx, y = inity;
+		var tile;
+		//Either blank(0), broken(1), or painted(2).
+		var state = 0;
+				
+		//Tiles are images. To create them cheaply, make a small canvas and draw on it.
+		var _c = document.createElement("canvas");
+		_c.width = 40;
+		_c.height = 40;
+		var _ctx = _c.getContext("2d");
+		
+		//Create BLANK tile. 
+		_ctx.fillStyle = "lightgray";
+		_ctx.fillRect(0, 0, 40, 40);
+		
+		Tile.BLANK = new Image();
+		Tile.BLANK.src = _c.toDataURL();
+		
+		//Create BROKEN tile
+		_ctx.fillStyle = "black";
+		_ctx.fillRect(0, 0, 40, 40);
+		
+		Tile.BROKEN = new Image();
+		Tile.BROKEN.src = _c.toDataURL();
+		
+		//Create PAINTED tile
+		_ctx.fillStyle = "aqua";
+		_ctx.fillRect(0, 0, 40, 40);
+		
+		Tile.PAINTED = new Image();
+		Tile.PAINTED.src = _c.toDataURL();
+
+		tile = Tile.BLANK;
+		
+		//Break a tile, unless it is painted or already broken.
+		this.smash = function(){
+			if (state === 0){
+				tile = Tile.BROKEN;
+				state = 1;
+			}
+
+		};
+		
+		//Paint a tile. This stops it from being broken. Painted tiles can be unpainted.
+		this.mark = function(){
+			if (state === 0){
+				tile = Tile.PAINTED;
+				state = 2;
+			}
+			else if (state === 2){
+				tile = Tile.BLANK;
+				state = 0;
+			}
+		};
+		
+		this.update = function(){
+			
+		};
+		
+		this.draw = function(ctx){
+			ctx.drawImage(tile, x, y);
+		};
+		
+	}
 	</script>
-	
+</body>	
 </html>
