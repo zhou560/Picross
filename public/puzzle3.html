@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Web Picross</title>
+	<meta charset="utf-8">
+	<style>
+		canvas{
+			border: 2px solid gray;
+		}
+	</style>
+</head>
+<body>
+	<script>
+		
+	var puzzle = [
+	[0,0,0,0,0,0,1,1,1,1,1,0,0,0],
+	[0,0,0,0,1,1,0,0,0,0,0,1,0,0],
+	[0,0,0,1,0,0,0,0,0,0,0,1,0,0],
+	[0,0,1,0,0,0,0,1,1,1,1,1,1,0],
+	[0,1,0,0,0,1,1,1,1,1,1,1,1,1],
+	[0,1,0,1,1,1,0,1,0,1,0,0,0,0],
+	[1,0,1,0,1,0,0,1,0,1,0,1,1,0],
+	[1,0,1,0,1,1,0,0,0,0,0,0,0,1],
+	[1,1,0,0,1,0,0,1,0,0,0,0,0,1],
+	[0,1,1,0,0,0,1,1,1,1,1,1,1,0],
+	[0,0,1,1,0,0,0,0,1,1,1,1,0,0],
+	[0,0,0,1,1,1,1,1,1,1,0,0,0,0],
+	[0,0,1,1,0,0,1,1,1,1,1,0,0,0],
+	[0,0,1,1,1,1,1,0,0,1,0,1,0,0],
+	[0,0,1,0,0,0,1,0,0,1,0,1,0,0],
+	[0,0,1,0,0,1,1,1,1,1,1,1,0,0],
+	[0,0,1,0,0,1,1,1,1,1,1,0,0,0],
+	[0,0,0,1,1,1,1,1,1,1,0,0,0,0],
+	[0,0,0,1,1,1,1,0,1,0,1,0,0,0],
+	[0,0,0,1,1,1,1,1,1,1,1,0,0,0]
+	];
+	
+	var rows = puzzle.length;
+	var columns = puzzle[0].length;
+	
+	//This canvas contains the game grid.
+	var canvas;
+	var ctx;
+		
+	var data;
+	
+	//The number of tiles left to be broken. When it reaches 0, the game ends.
+	var goal;
+
+	//Behaves like the main function of any program.
+	window.onload = function main(){
+		canvas = document.createElement("canvas");
+		canvas.width = columns * 18 - 2;
+		canvas.height = rows * 18 - 2;
+		//Position canvas to make room for the clues
+		canvas.style.position = "absolute";
+		canvas.style.left = Math.ceil(columns / 2) * 20 + "px";
+		canvas.style.top = Math.ceil(rows / 2) * 20 + "px";
+		ctx = canvas.getContext("2d");
+		
+		//Write clues
+		leftClue();
+		topClue();
+		
+		document.body.appendChild(canvas);
+		
+		canvas.addEventListener("mousedown", mouseDown);
+		init();
+		tick();
+		
+	};
+	
+	function leftClue(){
+		var leftGrid = document.createElement("canvas");
+		leftGrid.width = Math.ceil(columns / 2) * 18;
+		leftGrid.height = rows * 18 - 2;
+		leftGrid.style.position = "absolute";
+		leftGrid.style.top = Math.ceil(rows / 2) * 20 + "px";
+		document.body.appendChild(leftGrid);
+		
+		var _ctx = leftGrid.getContext("2d");
+		_ctx.font = "12px Arial";
+		var count, loc;
+		for (var i = 0; i < rows; i++){
+			count = 0;
+			loc = Math.ceil(columns / 2) * 18 - 18;
+			for (var j = puzzle[i].length - 1; j >= 0; j--){
+				if (puzzle[i][j]){
+					count++;
+				}
+				else if (count){
+					_ctx.fillText(count, loc, i * 18 + 13);
+					count = 0;
+					loc -= 18;
+				}
+			}
+			if (count){
+				_ctx.fillText(count, loc, i * 18 + 13);
+			}
+		}
+	}
+	
+	function topClue(){
+		var topGrid = document.createElement("canvas");
+		topGrid.width = columns * 18 - 2;
+		topGrid.height = Math.ceil(rows / 2) * 18 + 3;
+		topGrid.style.position = "absolute";
+		topGrid.style.left = Math.ceil(columns / 2) * 20 + "px";
+		document.body.appendChild(topGrid);
+		
+		var _ctx = topGrid.getContext("2d");
+		_ctx.font = "12px Arial";
+		var count, loc;
+		for (var i = 0; i < columns; i++){
+			count = 0;
+			loc = Math.ceil(rows / 2) * 18;
+			for ( var j = puzzle.length - 1; j >= 0; j--){
+				if (puzzle[j][i]){
+					count++;
+				}
+				else if (count){
+					_ctx.fillText(count, i*18, loc);
+					count = 0;
+					loc -= 18;
+				}
+			}
+			if (count){
+				_ctx.fillText(count, i * 18, loc);
+			}
+		}
+	}
+	
+	function init(){
+		//Primitive scoring system
+		goal = 0;
+		for (var i = 0; i < rows; i++){
+			for (var j = 0; j < columns; j++){
+				if (puzzle[i][j]){
+					goal++;
+				}
+			}
+		}
+		
+		//An array that holds all the game tiles
+		i = 0;
+		data = [];
+		for (var x = 0; x < columns; x++){
+			for (var y = 0; y < rows; y++){
+				data[i] = new Tile(x*18, y*18);
+				i++;
+			}
+		}
+	}
+	
+	//Continuously updates tileset
+	function tick(){
+		//If game has not ended yet, continue updating
+		if (goal){
+			window.requestAnimationFrame(tick);
+			update();
+			render();
+		}
+		//When all tiles have been correctly broken, end the game
+		else{
+			//The last tile has to render before the game ends.
+			for (var i = 0; i < data.length; i++){
+				data[i].finish();
+			}
+			render();
+			window.alert("You win!");
+		}
+		
+	}
+	
+	//Calls update method of each tile
+	function update(){
+		for (var i = 0; i < data.length; i++){
+			data[i].update();
+		}
+	}
+	
+	//Render each tile by calling its draw method
+	function render(){
+		for (var i = 0; i < data.length; i++){
+			data[i].draw(ctx);
+		}
+	}
+	
+	//Respond to mouse click
+	function mouseDown(evn){
+		var e = evn.target;
+		//Get the coordinates of the cursor inside the canvas
+		var px = evn.clientX - e.offsetLeft;
+		var py = evn.clientY - e.offsetTop;
+		
+		//The index of the tile that was clicked on.
+		var index = Math.floor(px/18) * rows;
+		index += Math.floor(py/18);
+		if (evn.which === 1){
+			data[index].smash();
+		}
+		else if (evn.which === 3){
+			data[index].mark();
+		}
+	}
+	
+	//Suppress right click menu, because right click is a game action.
+	window.oncontextmenu = function(){
+		return false;
+	};
+	
+	//Tile class. Each tile is 16x16 pixels, padded with 5 pixels.
+	function Tile(initx, inity){
+		
+		var x = initx, y = inity;
+		//Stores the current tile state.
+		var tile;
+		//Either blank(0), broken(1), painted(2), or permanent(3).
+		var state = 0;
+				
+		//Tiles are images. To create them cheaply, make a small canvas and draw on it.
+		var _c = document.createElement("canvas");
+		_c.width = 16;
+		_c.height = 16;
+		var _ctx = _c.getContext("2d");
+		
+		//Create EMPTY tile image
+		_ctx.fillStyle = "white";
+		_ctx.fillRect(0, 0, 16, 16);
+		//Empty tiles are white.
+		Tile.EMPTY = new Image();
+		Tile.EMPTY.src = _c.toDataURL();
+		
+		//Create BLANK tile image
+		_ctx.fillStyle = "lightgray";
+		_ctx.fillRect(0, 0, 16, 16);
+		//Blank tiles can either be broken or painted.
+		Tile.BLANK = new Image();
+		Tile.BLANK.src = _c.toDataURL();
+		
+		//Create BROKEN tile image
+		_ctx.fillStyle = "black";
+		_ctx.fillRect(0, 0, 16, 16);
+		//Tiles are broken in order to complete the puzzle.
+		Tile.BROKEN = new Image();
+		Tile.BROKEN.src = _c.toDataURL();
+		
+		//Create PAINTED tile image
+		_ctx.fillStyle = "aqua";
+		_ctx.fillRect(0, 0, 16, 16);
+		//Painted tiles mark tiles so that they cannot be broken. They can be unpainted.
+		Tile.PAINTED = new Image();
+		Tile.PAINTED.src = _c.toDataURL();
+		
+		//Create PERMANENT tile image
+		_ctx.fillStyle = "red";
+		_ctx.fillRect(0, 0, 16, 16);
+		//Permanent tiles mark tiles that were mistakenly broken. They cannot be unpainted.
+		Tile.PERMANENT = new Image();
+		Tile.PERMANENT.src = _c.toDataURL();
+
+		tile = Tile.BLANK;
+		
+		//Break a tile, unless it is painted, permanent, or already broken.
+		this.smash = function(){
+			if (state === 0){
+				if (puzzle[y / 18][x / 18]){
+					//NOTE: y comes first, to select the row, then x to select the column.
+					tile = Tile.BROKEN;
+					state = 1;
+					goal--;
+				}
+				//If a tile is broken incorrectly, replace it with a permanent tile.
+				else{
+					tile = Tile.PERMANENT;
+					state = 3;
+				}
+			}
+		};
+		
+		//Paint a tile. This stops it from being broken. Painted tiles can be unpainted.
+		this.mark = function(){
+			if (state === 0){
+				tile = Tile.PAINTED;
+				state = 2;
+			}
+			else if (state === 2){
+				tile = Tile.BLANK;
+				state = 0;
+			}
+		};
+		
+		//Nothing here at the moment. If there is any animation, it would go here.
+		this.update = function(){
+
+		};
+		
+		this.finish = function(){
+			if (state !== 1){
+				tile = Tile.EMPTY;
+			}
+		};
+		
+		this.draw = function(ctx){
+			ctx.drawImage(tile, x, y);
+		};
+		
+	}
+	</script>
+</body>	
+</html>
