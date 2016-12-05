@@ -22,12 +22,9 @@
 	[1,0,1,1,0,0,0,0,0,1,1,0,1],
 	[1,0,1,1,1,1,1,1,1,1,1,0,1],
 	[1,0,0,0,0,0,0,0,0,0,0,0,1],
-	[1,0,0,0,0,0,0,0,0,0,0,0,1],
-	[1,0,0,1,0,0,0,0,0,0,1,0,1],
-	[1,0,1,1,1,0,0,0,1,0,0,0,1],
 	[1,0,0,1,0,0,0,0,0,0,0,0,1],
-	[1,0,0,0,0,0,0,0,0,0,0,0,1],
-	[1,0,0,0,0,1,0,1,0,0,0,0,1],
+	[1,0,1,1,1,0,0,0,1,0,1,0,1],
+	[1,0,0,1,0,0,0,0,0,0,0,0,1],
 	[1,0,0,0,0,0,0,0,0,0,0,1,0],
 	[1,1,1,1,1,1,1,1,1,1,1,0,0]
 	];
@@ -49,7 +46,15 @@
 		canvas = document.createElement("canvas");
 		canvas.width = columns * 18 - 2;
 		canvas.height = rows * 18 - 2;
+		//Position canvas to make room for the clues
+		canvas.style.position = "absolute";
+		canvas.style.left = Math.ceil(columns / 2) * 20 + "px";
+		canvas.style.top = Math.ceil(rows / 2) * 20 + "px";
 		ctx = canvas.getContext("2d");
+		
+		//Write clues
+		leftClue();
+		topClue();
 		
 		document.body.appendChild(canvas);
 		
@@ -58,6 +63,66 @@
 		tick();
 		
 	};
+	
+	function leftClue(){
+		var leftGrid = document.createElement("canvas");
+		leftGrid.width = Math.ceil(columns / 2) * 18;
+		leftGrid.height = rows * 18 - 2;
+		leftGrid.style.position = "absolute";
+		leftGrid.style.top = Math.ceil(rows / 2) * 20 + "px";
+		document.body.appendChild(leftGrid);
+		
+		var _ctx = leftGrid.getContext("2d");
+		_ctx.font = "12px Arial";
+		var count, loc;
+		for (var i = 0; i < rows; i++){
+			count = 0;
+			loc = Math.floor(columns / 2) * 18;
+			for (var j = puzzle[i].length - 1; j >= 0; j--){
+				if (puzzle[i][j]){
+					count++;
+				}
+				else if (count){
+					_ctx.fillText(count, loc, i * 18 + 13);
+					count = 0;
+					loc -= 18;
+				}
+			}
+			if (count){
+				_ctx.fillText(count, loc, i * 18 + 13);
+			}
+		}
+	}
+	
+	function topClue(){
+		var topGrid = document.createElement("canvas");
+		topGrid.width = columns * 18 - 2;
+		topGrid.height = Math.ceil(rows / 2) * 18 + 3;
+		topGrid.style.position = "absolute";
+		topGrid.style.left = Math.ceil(columns / 2) * 20 + "px";
+		document.body.appendChild(topGrid);
+		
+		var _ctx = topGrid.getContext("2d");
+		_ctx.font = "12px Arial";
+		var count, loc;
+		for (var i = 0; i < columns; i++){
+			count = 0;
+			loc = Math.ceil(rows / 2) * 18;
+			for ( var j = puzzle.length - 1; j >= 0; j--){
+				if (puzzle[j][i]){
+					count++;
+				}
+				else if (count){
+					_ctx.fillText(count, i*18, loc);
+					count = 0;
+					loc -= 18;
+				}
+			}
+			if (count){
+				_ctx.fillText(count, i * 18, loc);
+			}
+		}
+	}
 	
 	function init(){
 		//Primitive scoring system
